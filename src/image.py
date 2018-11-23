@@ -55,8 +55,9 @@ class Image(object):
         
         cv2.imshow('img',img)
         while True:
-            k = cv2.waitKey(10)
+            k = cv2.waitKey(0)
             if k == 27:
+                cv2.destroyAllWindows()
                 break
     
     @staticmethod
