@@ -7,6 +7,9 @@ Created on Nov 8, 2018
 from cv2 import cv2
 import numpy as np
 
+from os import walk
+from os.path import join
+
 class Image(object):
 
     def __init__(self, params):
@@ -26,7 +29,7 @@ class Image(object):
             cv2.imshow("test", frame)
             if not ret:
                 break
-            k = cv2.waitKey(1)  
+            k = cv2.waitKey(1)
         
             if k%256 == 27:
                 # ESC pressed
@@ -43,6 +46,53 @@ class Image(object):
         cv2.destroyAllWindows()
         
         return lastpic
+
+    @staticmethod
+    def captureImageBW(img_counter=0, path='..//..//data',
+                       x1=150, y1=100, width=300):
+        cam = cv2.VideoCapture(0)
+
+        _, back = cam.read()
+
+        # img_counter = 0
+        ret, lastpic = cam.read()
+        while True:
+            ret, frame = cam.read()
+
+            cv2.rectangle(frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
+                          (0, 0, 255), 3)
+            cv2.imshow("live", frame)
+
+            bw_frame = Image.imgtobw(back, frame)
+            cv2.rectangle(bw_frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
+                          (255, 255, 255), 3)
+            cv2.imshow("bw", bw_frame)
+
+            if not ret:
+                break
+            k = cv2.waitKey(1)
+
+            if k % 256 == 27:
+                # ESC pressed
+                print("Escape hit, closing...")
+                break
+            elif k % 256 == 32:
+                # SPACE pressed
+                img_name = "bw_{}.png".format(img_counter)
+                # select part of the pic
+                roi = bw_frame[y1:y1+width, x1:x1+width]
+                cv2.imwrite(join(path, img_name), roi)
+                print("{} written!".format(img_name))
+                img_counter += 1
+                lastpic = roi
+            elif k % 256 == 98:
+                # b pressed
+                back = frame
+                print("Background selected.")
+        cam.release()
+        cv2.destroyAllWindows()
+
+        return lastpic
     
     @staticmethod
     def readImage(filename):
@@ -51,14 +101,25 @@ class Image(object):
     
     @staticmethod
     def displayImage(img):
-        cv2.namedWindow("img", cv2.WINDOW_AUTOSIZE )
-        
-        cv2.imshow('img',img)
+        cv2.namedWindow("img", cv2.WINDOW_AUTOSIZE)
+        cv2.imshow('img', img)
         while True:
             k = cv2.waitKey(0)
             if k == 27:
                 cv2.destroyAllWindows()
                 break
+
+    @staticmethod
+    def imgtobw(back, img):
+        # substract the background
+        difference = cv2.absdiff(img, back)
+        # to grayscale
+        gray = Image.rgb2gray(difference)
+        # Gaussian blur
+        blur = Image.blur(gray)
+        # binary treshold
+        _, bw = Image.thresholdBW(blur)
+        return bw
     
     @staticmethod
     def rgb2gray(img):
@@ -73,6 +134,15 @@ class Image(object):
     def threshold(img):
         ret,thresh1 = cv2.threshold(img,70,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
         return ret,thresh1
+
+    @staticmethod
+    def thresholdBW(img):
+        ret, thresh1 = cv2.threshold(img, 10, 255, cv2.THRESH_BINARY)
+        # Erode and dilate
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        thresh1 = cv2.erode(thresh1, kernel, iterations=1)
+        thresh1 = cv2.dilate(thresh1, kernel, iterations=1)
+        return ret, thresh1
     
     @staticmethod
     def truncate(img):
@@ -131,4 +201,25 @@ class Image(object):
         Image.displayImage(skin)
         
         return skin
+
+    @staticmethod
+    def load_images(file, flatten=True):
+        X = []
+        Y = []
+        for (dirpath, dirnames, filenames) in walk("data"):
+            for filename in filenames:
+                # collect, resize (and flatten) the image
+                img = cv2.imread(join(dirpath, filename), cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img, (50, 50))
+                if flatten:
+                    img = img.flatten()
+                else:
+                    img = np.reshape(img, (50, 50, 1))
+                # collect the class of the image
+                y = int(dirpath.split("\\")[-1])
+
+                X.append(img)
+                Y.append(y)
+
+        return X, Y
             
