@@ -1,12 +1,16 @@
 from image import Image
+from background import MyClass as bg
 
 
 if __name__ == '__main__':
-    #pic=Image.captureImage()
-    pic=Image.readImage('opencv_frame_0.png')
-    
-    pic=Image.detect_skin(pic)
+    pic=Image.captureImage()
+    #pic=Image.readImage('photo_2018-11-08_19-35-56.jpg')
+    Image.displayImage(pic)
+#    pic=Image.detect_skin(pic)
+#    Image.displayImage(pic)
     gray=Image.rgb2gray(pic)
+    gray = bg.remover()
+    Image.displayImage(gray)
     blur = Image.blur(gray)
     res,thres0=Image.truncate(blur)
     Image.displayImage(thres0)

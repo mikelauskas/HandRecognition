@@ -46,8 +46,8 @@ class Image(object):
     
     @staticmethod
     def readImage(filename):
-        return cv2.resize(cv2.imread(filename),(500,500))
-        #return cv2.imread(filename)
+        #return cv2.resize(cv2.imread(filename),(500,500))
+        return cv2.imread(filename)
     
     @staticmethod
     def displayImage(img):
