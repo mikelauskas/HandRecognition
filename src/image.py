@@ -48,57 +48,132 @@ class Image(object):
         return lastpic
 
     @staticmethod
-    def captureImageBW(img_counter=0, path='..//..//data',
-                       x1=150, y1=100, width=300):
-        cam = cv2.VideoCapture(0)
+    def captureImageBW(path='..\\..\\data', x1=150, y1=100, width=300,
+                       resize=True):
 
+        cam = cv2.VideoCapture(0)
         _, back = cam.read()
 
-        # img_counter = 0
+        label = -1
+        shots = 0
+        img_counters = [0, 0, 0, 0, 0, 0, 0]
+        count_loop = 0
+
         ret, lastpic = cam.read()
         while True:
+            count_loop = count_loop % 2
+            # Live frame
             ret, frame = cam.read()
-
+            # Draw the rectangle to put the hand
             cv2.rectangle(frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
                           (0, 0, 255), 3)
+            if label >= 0:
+                cv2.putText(frame, "Collecting label: {}".format(label), (10, 25),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255))
+            if shots != 0:
+                cv2.putText(frame, "{} pics to take!".format(shots), (15, 45),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255))
             cv2.imshow("live", frame)
 
+            # Black and white frame
             bw_frame = Image.imgtobw(back, frame)
+            # Draw the rectangle to put the hand
             cv2.rectangle(bw_frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
                           (255, 255, 255), 3)
             cv2.imshow("bw", bw_frame)
 
             if not ret:
                 break
-            k = cv2.waitKey(1)
 
-            if k % 256 == 27:
+            # k = cv2.waitKey(1)
+            k = cv2.waitKey(33)
+            if k == 27:
                 # ESC pressed
                 print("Escape hit, closing...")
                 break
-            elif k % 256 == 32:
-                # SPACE pressed
-                img_name = "bw_{}.png".format(img_counter)
-                # select part of the pic
+
+            elif k == 115 or k == 83:
+                # S pressed : save image
+                img_name = "bw_{}_{}.png".format(label, img_counters[label])
+                # select part of the pic (and resize)
                 roi = bw_frame[y1:y1+width, x1:x1+width]
+                if resize:
+                    roi = cv2.resize(roi, (50, 50))
+                # save the pic
                 cv2.imwrite(join(path, img_name), roi)
                 print("{} written!".format(img_name))
-                img_counter += 1
+                img_counters[label] += 1
                 lastpic = roi
-            elif k % 256 == 98:
-                # b pressed
+
+            elif k == 32:
+                # Space pressed : continuous shots
+                shots = 100
+
+            elif k == 98 or k == 66:
+                # B pressed : select the background
                 back = frame
                 print("Background selected.")
+            elif k == 108 or k == 76:
+                # L pressed : move the red square to the left
+                x1 = x1 - 10
+            elif k == 114 or k == 82:
+                # R pressed : move the red square to the right
+                x1 = x1 + 10
+            elif k == 112 or k == 80:
+                # P pressed : increase the width of the red square
+                width = width + 10
+            elif k == 109 or k == 77:
+                # M pressed : decrease the width of the red square
+                width = width - 10
+
+            elif k == 48:
+                # 0 pressed : change the label to zero
+                label = 0
+            elif k == 49:
+                # 1 pressed : change the label to one
+                label = 1
+            elif k == 50:
+                # 2 pressed : change the label to two
+                label = 2
+            elif k == 51:
+                # 3 pressed : change the label to three
+                label = 3
+            elif k == 52:
+                # 4 pressed : change the label to four
+                label = 4
+            elif k == 53:
+                # 5 pressed : change the label to five
+                label = 5
+
+            elif k == -1:
+                pass
+            else:
+                print(k)
+
+            if shots != 0 and count_loop == 0:
+                img_name = "bw_{}_{}.png".format(label, img_counters[label])
+                # select part of the pic (and resize)
+                roi = bw_frame[y1:y1+width, x1:x1+width]
+                if resize:
+                    roi = cv2.resize(roi, (50, 50))
+                # save the pic
+                cv2.imwrite(join(path, img_name), roi)
+                print("{} written!".format(img_name))
+                img_counters[label] += 1
+                shots -= 1
+                lastpic = roi
+
+            count_loop += 1
         cam.release()
         cv2.destroyAllWindows()
 
         return lastpic
-    
+
     @staticmethod
     def readImage(filename):
         #return cv2.resize(cv2.imread(filename),(500,500))
         return cv2.imread(filename)
-    
+
     @staticmethod
     def displayImage(img):
         cv2.namedWindow("img", cv2.WINDOW_AUTOSIZE)
@@ -120,30 +195,31 @@ class Image(object):
         # binary treshold
         _, bw = Image.thresholdBW(blur)
         return bw
-    
+
     @staticmethod
     def rgb2gray(img):
-        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         return gray
+
     @staticmethod
     def blur(img):
-        blurred=cv2.GaussianBlur(img,(5,5),0)
+        blurred = cv2.GaussianBlur(img, (5, 5), 0)
         return blurred
-    
+
     @staticmethod
     def threshold(img):
-        ret,thresh1 = cv2.threshold(img,70,255,cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-        return ret,thresh1
+        ret, thresh1 = cv2.threshold(img, 70, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+        return ret, thresh1
 
     @staticmethod
     def thresholdBW(img):
-        ret, thresh1 = cv2.threshold(img, 10, 255, cv2.THRESH_BINARY)
+        ret, thresh1 = cv2.threshold(img, 8, 255, cv2.THRESH_BINARY)
         # Erode and dilate
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
         thresh1 = cv2.erode(thresh1, kernel, iterations=1)
         thresh1 = cv2.dilate(thresh1, kernel, iterations=1)
         return ret, thresh1
-    
+
     @staticmethod
     def truncate(img):
         ret,thresh=cv2.threshold(img,210,240,cv2.THRESH_TOZERO_INV)
@@ -203,10 +279,10 @@ class Image(object):
         return skin
 
     @staticmethod
-    def load_images(file, flatten=True):
+    def load_images(folder, flatten=True):
         X = []
         Y = []
-        for (dirpath, dirnames, filenames) in walk("data"):
+        for (dirpath, dirnames, filenames) in walk(folder):
             for filename in filenames:
                 # collect, resize (and flatten) the image
                 img = cv2.imread(join(dirpath, filename), cv2.IMREAD_GRAYSCALE)
