@@ -4,6 +4,6 @@ import sys
 if __name__ == '__main__':
     if len(sys.argv) == 2:
         path = sys.argv[1]
-        _ = Image.captureImageBW(path, width=200)
+        Image.captureBW_interface(path, width=250)
     else:
-        _ = Image.captureImageBW(width=200)
+        Image.captureBW_interface(width=250)

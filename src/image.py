@@ -48,9 +48,21 @@ class Image(object):
         return lastpic
 
     @staticmethod
-    def captureImageBW(path='..\\..\\data', x1=150, y1=100, width=300,
-                       resize=True):
+    def captureBW_interface(path='..\\..\\data', x1=150, y1=100, width=300,
+                            resize=True, nb_shots=50, per_frame=3):
+        """
+        Launch interface to collect the data.
 
+        * Press B to select a background. Default is the first frame captured
+          by the camera.
+        * Press 0, 1, 2, 3, 4 or 5 to select the label of the picture. Default
+          is -1.
+        * Press S to save a frame.
+        * Press SPACE to start a series of 5O shots every 3 frames.
+        * Press L or R to move the capture window to the Left or Right.
+        * Press P or M to increase or decrease the width of the capture window.
+        * Press ESC to close the interface.
+        """
         cam = cv2.VideoCapture(0)
         _, back = cam.read()
 
@@ -61,7 +73,7 @@ class Image(object):
 
         ret, lastpic = cam.read()
         while True:
-            count_loop = count_loop % 2
+            count_loop = count_loop % per_frame
             # Live frame
             ret, frame = cam.read()
             # Draw the rectangle to put the hand
@@ -107,7 +119,7 @@ class Image(object):
 
             elif k == 32:
                 # Space pressed : continuous shots
-                shots = 100
+                shots = nb_shots
 
             elif k == 98 or k == 66:
                 # B pressed : select the background
@@ -167,8 +179,6 @@ class Image(object):
         cam.release()
         cv2.destroyAllWindows()
 
-        return lastpic
-
     @staticmethod
     def readImage(filename):
         #return cv2.resize(cv2.imread(filename),(500,500))
@@ -222,27 +232,27 @@ class Image(object):
 
     @staticmethod
     def truncate(img):
-        ret,thresh=cv2.threshold(img,210,240,cv2.THRESH_TOZERO_INV)
+        ret,thresh=cv2.threshold(img, 210,240,cv2.THRESH_TOZERO_INV)
         return ret,thresh
-        
+
     @staticmethod
     def contours(thresh):
         im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        return im2,contours,hierarchy
-    
+        return im2, contours, hierarchy
+
     @staticmethod
     def hull(contours,thresh,hierarchy):
         # create hull array for convex hull points
         hull = []
-         
+
         # calculate points for each contour
         for i in range(len(contours)):
             # creating convex hull object for each contour
             hull.append(cv2.convexHull(contours[i], False))
-        
+
         # create an empty black image
         drawing = np.zeros((thresh.shape[0], thresh.shape[1], 3), np.uint8)
-         
+
         # draw contours and hull points
         for i in range(len(contours)):
             color_contours = (0, 255, 0) # green - color for contours
@@ -251,35 +261,40 @@ class Image(object):
             cv2.drawContours(drawing, contours, i, color_contours, 1, 8, hierarchy)
             # draw ith convex hull object
             cv2.drawContours(drawing, hull, i, color, 1, 8)
-        
+
         return drawing
-    
+
     @staticmethod
     def detect_skin(frame):
-        lower = np.array([110, 20, 70 ], dtype = "uint8")
-        upper = np.array([150, 255, 255], dtype = "uint8")
-        
-        
+        lower = np.array([110, 20, 70], dtype="uint8")
+        upper = np.array([150, 255, 255], dtype="uint8")
+
         converted = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
         skinMask = cv2.inRange(converted, lower, upper)
- 
+
         # apply a series of erosions and dilations to the mask
-         # using an elliptical kernel
+        # using an elliptical kernel
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
-        skinMask = cv2.erode(skinMask, kernel, iterations = 2)
-        skinMask = cv2.dilate(skinMask, kernel, iterations = 2)
-     
+        skinMask = cv2.erode(skinMask, kernel, iterations=2)
+        skinMask = cv2.dilate(skinMask, kernel, iterations=2)
+
         # blur the mask to help remove noise, then apply the
         # mask to the frame
-        skinMask = cv2.GaussianBlur(skinMask, (5,5), 100)
-        skin = cv2.bitwise_and(frame, frame, mask = skinMask)
-        
+        skinMask = cv2.GaussianBlur(skinMask, (5, 5), 100)
+        skin = cv2.bitwise_and(frame, frame, mask=skinMask)
+
         Image.displayImage(skin)
-        
+
         return skin
 
     @staticmethod
     def load_images(folder, flatten=True):
+        """
+        Load the images from a folder.
+
+        Return a numpy.array of (flatten) images and  a numpy array of their
+        labels (given by the name of the folder they are in).
+        """
         X = []
         Y = []
         for (dirpath, dirnames, filenames) in walk(folder):
@@ -297,5 +312,4 @@ class Image(object):
                 X.append(img)
                 Y.append(y)
 
-        return X, Y
-            
+        return np.array(X), np.array(Y)
