@@ -217,6 +217,7 @@ class Image(object):
                 label = 5
 
             elif k == -1:
+                # No key is pressed
                 pass
             else:
                 print(k)
@@ -233,7 +234,8 @@ class Image(object):
                     roi_frm = cv2.resize(roi_frm, (50, 50))
                 # save the pic
                 cv2.imwrite(join(path, name_bw), roi_bw)
-                cv2.imwrite(join(path, name_frm), roi_frm)
+                # uncomment to save rgb picture
+                # cv2.imwrite(join(path, name_frm), roi_frm)
                 print("{} and {} written!".format(name_bw, name_frm))
                 img_counters[label] += 1
                 shots -= 1
