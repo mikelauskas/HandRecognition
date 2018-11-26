@@ -1,9 +1,3 @@
-'''
-Created on Nov 8, 2018
-
-@author: mikel
-'''
-
 from cv2 import cv2
 import numpy as np
 
@@ -13,8 +7,10 @@ from os.path import join
 
 
 class Image(object):
+    """Collection of method for collecting, processing and loading images."""
 
     def __init__(self, params):
+        """Init of the class."""
         pass
 
     @staticmethod
@@ -175,7 +171,8 @@ class Image(object):
                     roi_frm = cv2.resize(roi_frm, (50, 50))
                 # save the pic
                 cv2.imwrite(join(path, name_bw), roi_bw)
-                cv2.imwrite(join(path, name_frm), roi_frm)
+                # uncomment 
+                # cv2.imwrite(join(path, name_frm), roi_frm)
                 print("{} and {} written!".format(name_bw, name_frm))
                 img_counters[label] += 1
 
@@ -255,6 +252,10 @@ class Image(object):
 
     @staticmethod
     def displayImage(img):
+        """Display the image in a new window.
+
+        * Press ESC to close the window.
+        """
         cv2.namedWindow("img", cv2.WINDOW_AUTOSIZE)
         cv2.imshow('img', img)
         while True:
@@ -289,13 +290,12 @@ class Image(object):
         return blurred
 
     @staticmethod
-    def threshold(img):
-        ret, thresh1 = cv2.threshold(img, 70, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
-        return ret, thresh1
-
-    @staticmethod
     def thresholdBW(img):
-        """"""
+        """Transform image in B&W.
+
+        First apply a binary treshold and the erode and dilate the image
+        to suppress noise.
+        """
         ret, thresh1 = cv2.threshold(img, 8, 255, cv2.THRESH_BINARY)
         # Erode and dilate
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
@@ -304,64 +304,12 @@ class Image(object):
         return ret, thresh1
 
     @staticmethod
-    def truncate(img):
-        ret,thresh=cv2.threshold(img, 210,240,cv2.THRESH_TOZERO_INV)
-        return ret,thresh
-
-    @staticmethod
-    def contours(thresh):
-        im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        return im2, contours, hierarchy
-
-    @staticmethod
-    def hull(contours,thresh,hierarchy):
-        # create hull array for convex hull points
-        hull = []
-
-        # calculate points for each contour
-        for i in range(len(contours)):
-            # creating convex hull object for each contour
-            hull.append(cv2.convexHull(contours[i], False))
-
-        # create an empty black image
-        drawing = np.zeros((thresh.shape[0], thresh.shape[1], 3), np.uint8)
-
-        # draw contours and hull points
-        for i in range(len(contours)):
-            color_contours = (0, 255, 0) # green - color for contours
-            color = (255, 0, 0) # blue - color for convex hull
-            # draw ith contour
-            cv2.drawContours(drawing, contours, i, color_contours, 1, 8, hierarchy)
-            # draw ith convex hull object
-            cv2.drawContours(drawing, hull, i, color, 1, 8)
-
-        return drawing
-
-    @staticmethod
-    def detect_skin(frame):
-        lower = np.array([110, 20, 70], dtype="uint8")
-        upper = np.array([150, 255, 255], dtype="uint8")
-
-        converted = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-        skinMask = cv2.inRange(converted, lower, upper)
-
-        # apply a series of erosions and dilations to the mask
-        # using an elliptical kernel
-        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
-        skinMask = cv2.erode(skinMask, kernel, iterations=2)
-        skinMask = cv2.dilate(skinMask, kernel, iterations=2)
-
-        # blur the mask to help remove noise, then apply the
-        # mask to the frame
-        skinMask = cv2.GaussianBlur(skinMask, (5, 5), 100)
-        skin = cv2.bitwise_and(frame, frame, mask=skinMask)
-
-        Image.displayImage(skin)
-
-        return skin
-
-    @staticmethod
     def load_images(folder, flatten=True, col=False):
+        """Load the images from a folder into numpy array.
+
+        The label of the images are given by the name of the folder
+        they are in.
+        """
         X = []
         Y = []
         for (dirpath, dirnames, filenames) in walk(folder):
