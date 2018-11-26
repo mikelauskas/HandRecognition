@@ -8,47 +8,26 @@ from cv2 import cv2
 import numpy as np
 
 from os import walk
+import os.path
 from os.path import join
+
 
 class Image(object):
 
     def __init__(self, params):
         pass
-        
-    @staticmethod
-    def captureImage():
-        cam = cv2.VideoCapture(0)
-
-        cv2.namedWindow("test")
-        
-        img_counter = 0
-        ret, lastpic = cam.read()
-        while True:
-            ret, frame = cam.read()
-            
-            cv2.imshow("test", frame)
-            if not ret:
-                break
-            k = cv2.waitKey(1)
-        
-            if k%256 == 27:
-                # ESC pressed
-                print("Escape hit, closing...")
-                break
-            elif k%256 == 32:
-                # SPACE pressed
-                img_name = "opencv_frame_{}.png".format(img_counter)
-                cv2.imwrite(img_name, frame)
-                print("{} written!".format(img_name))
-                img_counter += 1
-                lastpic=frame
-        cam.release()
-        cv2.destroyAllWindows()
-        
-        return lastpic
 
     @staticmethod
-    def step_capture(path='..\\..\\data', x1=150, y1=100, width=300):
+    def captureImage(model=None, x1=150, y1=100, width=300, resize=True):
+        """Capture an image and predict the number of fingers if a model is provided.
+
+        * Press B to select a background. Default is the first frame captured
+          by the camera.
+        * Press SPACE to save a frame to return.
+        * Press L or R to move the capture window to the Left or Right.
+        * Press P or M to increase or decrease the width of the capture window.
+        * Press ESC to close the interface.
+        """
         cam = cv2.VideoCapture(0)
         _, back = cam.read()
 
@@ -56,18 +35,27 @@ class Image(object):
         while True:
             # Live frame
             ret, frame = cam.read()
-            frame = cv2.flip(frame, 0)
+            frame = cv2.flip(frame, 1)
 
             # Draw the rectangle to put the hand
             cv2.rectangle(frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
                           (0, 0, 255), 3)
-            cv2.imshow("live", frame)
 
             # Black and white frame
             bw_frame = Image.imgtobw(back, frame)
             # Draw the rectangle to put the hand
             cv2.rectangle(bw_frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
                           (255, 255, 255), 3)
+
+            # Use a trained model to predict the number of fingers inside the red square
+            if model is not None:
+                img = cv2.resize(bw_frame[y1:y1+width, x1:x1+width], (50, 50))
+                predict = model.predict(np.array([img.flatten()])).argmax()
+
+                cv2.putText(frame, "predict : {}".format(predict), (15, 45),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 255))
+
+            cv2.imshow("live", frame)
             cv2.imshow("bw", bw_frame)
 
             if not ret:
@@ -82,37 +70,16 @@ class Image(object):
 
             elif k == 32:
                 # SPACE pressed : save image
-                roi_frame = frame[y1:y1+width, x1:x1+width]
-                cv2.imwrite(join(path, 'frame.png'), roi_frame)
-
-                # substract the background
-                diff = cv2.absdiff(frame, back)
-                cv2.imwrite(join(path, 'diff.png'), diff[y1:y1+width, x1:x1+width])
-                # to grayscale
-                gray = Image.rgb2gray(diff)
-                cv2.imwrite(join(path, 'gray.png'), gray[y1:y1+width, x1:x1+width])
-                # Gaussian blur
-                blur = Image.blur(gray)
-                cv2.imwrite(join(path, 'blur.png'), blur[y1:y1+width, x1:x1+width])
-                # binary treshold
-                _, thresh1 = cv2.threshold(blur, 8, 255, cv2.THRESH_BINARY)
-                cv2.imwrite(join(path, 'thresh.png'), thresh1[y1:y1+width, x1:x1+width])
-                # Erode and dilate
-                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
-                erod = cv2.erode(thresh1, kernel, iterations=1)
-                cv2.imwrite(join(path, 'erod.png'), erod[y1:y1+width, x1:x1+width])
-                dilat = cv2.dilate(erod, kernel, iterations=1)
-                cv2.imwrite(join(path, 'dilat.png'), dilat[y1:y1+width, x1:x1+width])
-
+                # select part of the pic (and resize)
+                roi_bw = bw_frame[y1:y1+width, x1:x1+width]
+                if resize:
+                    roi_bw = cv2.resize(roi_bw, (50, 50))
+                # save the pic
+                lastpic = roi_bw
 
             elif k == 98 or k == 66:
                 # B pressed : select the background
                 back = frame
-                roi_black = back[y1:y1+width, x1:x1+width]
-                print(roi_black)
-                print(type(roi_black))
-                print(join(path, "background"))
-                cv2.imwrite(join(path, "background.png"), roi_black)
                 print("Background selected.")
             elif k == 108 or k == 76:
                 # L pressed : move the red square to the left
@@ -131,8 +98,11 @@ class Image(object):
                 pass
             else:
                 print(k)
+
         cam.release()
         cv2.destroyAllWindows()
+
+        return lastpic
 
     @staticmethod
     def captureBW_interface(path='..\\..\\data', x1=150, y1=100, width=300,
@@ -276,9 +246,12 @@ class Image(object):
         cv2.destroyAllWindows()
 
     @staticmethod
-    def readImage(filename):
-        #return cv2.resize(cv2.imread(filename),(500,500))
-        return cv2.imread(filename)
+    def readImage(filename, resize=True):
+        """Read a (resized) imaage from a file."""
+        img = cv2.imread(filename)
+        if resize:
+            img = cv2.resize(img, (500, 500))
+        return img
 
     @staticmethod
     def displayImage(img):
@@ -292,6 +265,7 @@ class Image(object):
 
     @staticmethod
     def imgtobw(back, img):
+        """Remove the background from an image and return a b&w image."""
         # substract the background
         difference = cv2.absdiff(img, back)
         # to grayscale
@@ -304,11 +278,13 @@ class Image(object):
 
     @staticmethod
     def rgb2gray(img):
+        """Transform rgb image to gray image."""
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         return gray
 
     @staticmethod
     def blur(img):
+        """Apply a Gausian blur on the image."""
         blurred = cv2.GaussianBlur(img, (5, 5), 0)
         return blurred
 
@@ -319,6 +295,7 @@ class Image(object):
 
     @staticmethod
     def thresholdBW(img):
+        """"""
         ret, thresh1 = cv2.threshold(img, 8, 255, cv2.THRESH_BINARY)
         # Erode and dilate
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
@@ -384,28 +361,26 @@ class Image(object):
         return skin
 
     @staticmethod
-    def load_images(folder, flatten=True):
-        """
-        Load the images from a folder.
-
-        Return a numpy.array of (flatten) images and  a numpy array of their
-        labels (given by the name of the folder they are in).
-        """
+    def load_images(folder, flatten=True, col=False):
         X = []
         Y = []
         for (dirpath, dirnames, filenames) in walk(folder):
             for filename in filenames:
                 # collect, resize (and flatten) the image
-                img = cv2.imread(join(dirpath, filename), cv2.IMREAD_GRAYSCALE)
-                img = cv2.resize(img, (50, 50))
-                if flatten:
-                    img = img.flatten()
+                if col:
+                    img = cv2.imread(join(dirpath, filename))
                 else:
-                    img = np.reshape(img, (50, 50, 1))
+                    img = cv2.imread(join(dirpath, filename), cv2.IMREAD_GRAYSCALE)
+                img = cv2.resize(img, (50, 50))
+                if not(col):
+                    if flatten:
+                        img = img.flatten()
+                    else:
+                        img = np.reshape(img, (50, 50, 1))
                 # collect the class of the image
-                y = int(dirpath.split("\\")[-1])
+                label = int(os.path.basename(os.path.normpath(dirpath)))
 
                 X.append(img)
-                Y.append(y)
+                Y.append(label)
 
         return np.array(X), np.array(Y)
