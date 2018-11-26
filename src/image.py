@@ -171,7 +171,7 @@ class Image(object):
                     roi_frm = cv2.resize(roi_frm, (50, 50))
                 # save the pic
                 cv2.imwrite(join(path, name_bw), roi_bw)
-                # uncomment 
+                # uncomment to save rgb picture
                 # cv2.imwrite(join(path, name_frm), roi_frm)
                 print("{} and {} written!".format(name_bw, name_frm))
                 img_counters[label] += 1
@@ -304,7 +304,7 @@ class Image(object):
         return ret, thresh1
 
     @staticmethod
-    def load_images(folder, flatten=True, col=False):
+    def load_images(folder, flatten=True):
         """Load the images from a folder into numpy array.
 
         The label of the images are given by the name of the folder
@@ -315,16 +315,12 @@ class Image(object):
         for (dirpath, dirnames, filenames) in walk(folder):
             for filename in filenames:
                 # collect, resize (and flatten) the image
-                if col:
-                    img = cv2.imread(join(dirpath, filename))
-                else:
-                    img = cv2.imread(join(dirpath, filename), cv2.IMREAD_GRAYSCALE)
+                img = cv2.imread(join(dirpath, filename), cv2.IMREAD_GRAYSCALE)
                 img = cv2.resize(img, (50, 50))
-                if not(col):
-                    if flatten:
-                        img = img.flatten()
-                    else:
-                        img = np.reshape(img, (50, 50, 1))
+                if flatten:
+                    img = img.flatten()
+                else:
+                    img = np.reshape(img, (50, 50, 1))
                 # collect the class of the image
                 label = int(os.path.basename(os.path.normpath(dirpath)))
 
