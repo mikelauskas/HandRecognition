@@ -48,6 +48,93 @@ class Image(object):
         return lastpic
 
     @staticmethod
+    def step_capture(path='..\\..\\data', x1=150, y1=100, width=300):
+        cam = cv2.VideoCapture(0)
+        _, back = cam.read()
+
+        ret, lastpic = cam.read()
+        while True:
+            # Live frame
+            ret, frame = cam.read()
+            frame = cv2.flip(frame, 0)
+
+            # Draw the rectangle to put the hand
+            cv2.rectangle(frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
+                          (0, 0, 255), 3)
+            cv2.imshow("live", frame)
+
+            # Black and white frame
+            bw_frame = Image.imgtobw(back, frame)
+            # Draw the rectangle to put the hand
+            cv2.rectangle(bw_frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
+                          (255, 255, 255), 3)
+            cv2.imshow("bw", bw_frame)
+
+            if not ret:
+                break
+
+            # k = cv2.waitKey(1)
+            k = cv2.waitKey(33)
+            if k == 27:
+                # ESC pressed
+                print("Escape hit, closing...")
+                break
+
+            elif k == 32:
+                # SPACE pressed : save image
+                roi_frame = frame[y1:y1+width, x1:x1+width]
+                cv2.imwrite(join(path, 'frame.png'), roi_frame)
+
+                # substract the background
+                diff = cv2.absdiff(frame, back)
+                cv2.imwrite(join(path, 'diff.png'), diff[y1:y1+width, x1:x1+width])
+                # to grayscale
+                gray = Image.rgb2gray(diff)
+                cv2.imwrite(join(path, 'gray.png'), gray[y1:y1+width, x1:x1+width])
+                # Gaussian blur
+                blur = Image.blur(gray)
+                cv2.imwrite(join(path, 'blur.png'), blur[y1:y1+width, x1:x1+width])
+                # binary treshold
+                _, thresh1 = cv2.threshold(blur, 8, 255, cv2.THRESH_BINARY)
+                cv2.imwrite(join(path, 'thresh.png'), thresh1[y1:y1+width, x1:x1+width])
+                # Erode and dilate
+                kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+                erod = cv2.erode(thresh1, kernel, iterations=1)
+                cv2.imwrite(join(path, 'erod.png'), erod[y1:y1+width, x1:x1+width])
+                dilat = cv2.dilate(erod, kernel, iterations=1)
+                cv2.imwrite(join(path, 'dilat.png'), dilat[y1:y1+width, x1:x1+width])
+
+
+            elif k == 98 or k == 66:
+                # B pressed : select the background
+                back = frame
+                roi_black = back[y1:y1+width, x1:x1+width]
+                print(roi_black)
+                print(type(roi_black))
+                print(join(path, "background"))
+                cv2.imwrite(join(path, "background.png"), roi_black)
+                print("Background selected.")
+            elif k == 108 or k == 76:
+                # L pressed : move the red square to the left
+                x1 = x1 - 10
+            elif k == 114 or k == 82:
+                # R pressed : move the red square to the right
+                x1 = x1 + 10
+            elif k == 112 or k == 80:
+                # P pressed : increase the width of the red square
+                width = width + 10
+            elif k == 109 or k == 77:
+                # M pressed : decrease the width of the red square
+                width = width - 10
+
+            elif k == -1:
+                pass
+            else:
+                print(k)
+        cam.release()
+        cv2.destroyAllWindows()
+
+    @staticmethod
     def captureBW_interface(path='..\\..\\data', x1=150, y1=100, width=300,
                             resize=True, nb_shots=50, per_frame=3):
         """
@@ -76,6 +163,8 @@ class Image(object):
             count_loop = count_loop % per_frame
             # Live frame
             ret, frame = cam.read()
+            frame = cv2.flip(frame, 1)
+
             # Draw the rectangle to put the hand
             cv2.rectangle(frame, (x1-3, y1-3), (x1+width+3, y1+width+3),
                           (0, 0, 255), 3)
@@ -106,16 +195,19 @@ class Image(object):
 
             elif k == 115 or k == 83:
                 # S pressed : save image
-                img_name = "bw_{}_{}.png".format(label, img_counters[label])
+                name_bw = "bw_{}_{}.png".format(label, img_counters[label])
+                name_frm = "frm_{}_{}.png".format(label, img_counters[label])
                 # select part of the pic (and resize)
-                roi = bw_frame[y1:y1+width, x1:x1+width]
+                roi_bw = bw_frame[y1:y1+width, x1:x1+width]
+                roi_frm = frame[y1:y1+width, x1:x1+width]
                 if resize:
-                    roi = cv2.resize(roi, (50, 50))
+                    roi_bw = cv2.resize(roi_bw, (50, 50))
+                    roi_frm = cv2.resize(roi_frm, (50, 50))
                 # save the pic
-                cv2.imwrite(join(path, img_name), roi)
-                print("{} written!".format(img_name))
+                cv2.imwrite(join(path, name_bw), roi_bw)
+                cv2.imwrite(join(path, name_frm), roi_frm)
+                print("{} and {} written!".format(name_bw, name_frm))
                 img_counters[label] += 1
-                lastpic = roi
 
             elif k == 32:
                 # Space pressed : continuous shots
@@ -162,18 +254,22 @@ class Image(object):
             else:
                 print(k)
 
+            # S pressed and frame multiple of 3
             if shots != 0 and count_loop == 0:
-                img_name = "bw_{}_{}.png".format(label, img_counters[label])
+                name_bw = "bw_{}_{}.png".format(label, img_counters[label])
+                name_frm = "frm_{}_{}.png".format(label, img_counters[label])
                 # select part of the pic (and resize)
-                roi = bw_frame[y1:y1+width, x1:x1+width]
+                roi_bw = bw_frame[y1:y1+width, x1:x1+width]
+                roi_frm = frame[y1:y1+width, x1:x1+width]
                 if resize:
-                    roi = cv2.resize(roi, (50, 50))
+                    roi_bw = cv2.resize(roi_bw, (50, 50))
+                    roi_frm = cv2.resize(roi_frm, (50, 50))
                 # save the pic
-                cv2.imwrite(join(path, img_name), roi)
-                print("{} written!".format(img_name))
+                cv2.imwrite(join(path, name_bw), roi_bw)
+                cv2.imwrite(join(path, name_frm), roi_frm)
+                print("{} and {} written!".format(name_bw, name_frm))
                 img_counters[label] += 1
                 shots -= 1
-                lastpic = roi
 
             count_loop += 1
         cam.release()
